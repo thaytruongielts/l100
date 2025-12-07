@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ôn Thi Tiếng Anh Vào Lớp 10 - Ứng Dụng Luyện Tập Tương Tác</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans', sans-serif; }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container { height: 350px; }
+        }
+        .active-tab { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
+        .inactive-tab { color: #6b7280; }
+        .correct-answer { background-color: #d1fae5; border-color: #10b981; color: #065f46; }
+        .wrong-answer { background-color: #fee2e2; border-color: #ef4444; color: #991b1b; }
+        .hidden-section { display: none; }
+    </style>
+    <!-- Chosen Palette: Warm Neutral & Academic Blue (bg-stone-50, text-stone-800, blue-600 primary) -->
+    <!-- Application Structure Plan: 
+         1. Header: Test overview, timer, and progress.
+         2. Tabbed Interface: Groups questions by their linguistic skill (Phonetics, Grammar, Reading, Writing) to reduce cognitive load and allow focused practice.
+         3. Interactive Question Cards: Each question is an interactive component. MCQs use radio groups; Word Forms use inputs; Writing uses comparison fields.
+         4. Real-time Feedback Mode: Users can 'Check' specific sections or 'Submit All' for a final grade.
+         5. Analytics Dashboard: A Chart.js visualization appears upon completion to show strengths/weaknesses across the 6 skill areas. 
+    -->
+    <!-- Visualization & Content Choices:
+         - Performance Radar/Bar Chart (Chart.js): Visualizes the user's proficiency in each section (e.g., Grammar vs Reading) to guide further study.
+         - Interactive Inputs: Replaces static text for higher engagement.
+         - Split-Pane Reading: Keeps the reading passage visible while scrolling through questions to reduce memory strain.
+         - Justification: Direct interaction with the content promotes active recall better than passive reading.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="bg-stone-50 text-stone-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold text-blue-800">Luyện Thi Tiếng Anh Vào 10</h1>
+                <p class="text-sm text-stone-500">50 Câu Hỏi Tổng Hợp • Thời gian: <span id="timer" class="font-mono font-bold text-red-600">60:00</span></p>
+            </div>
+            <div class="mt-4 md:mt-0 flex gap-3">
+                <button onclick="app.submitExam()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-md">
+                    Nộp Bài & Xem Kết Quả
+                </button>
+            </div>
+        </div>
+        <!-- Navigation Tabs -->
+        <div class="container mx-auto px-4 mt-2 overflow-x-auto scrollbar-hide">
+            <nav class="flex space-x-6 border-b border-stone-200 min-w-max" id="nav-tabs">
+                <!-- Injected via JS -->
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8">
+        
+        <!-- Intro Section -->
+        <div id="intro-section" class="bg-white rounded-xl shadow-sm p-6 mb-8 border-l-4 border-blue-500">
+            <h2 class="text-lg font-bold text-stone-800 mb-2">Hướng Dẫn Làm Bài</h2>
+            <p class="text-stone-600 leading-relaxed">
+                Chào mừng bạn đến với bài thi thử tổng hợp. Hệ thống bài tập bao gồm 6 phần chính bao phủ các kiến thức trọng tâm: 
+                <strong>Ngữ âm, Ngữ pháp, Tìm lỗi sai, Cấu tạo từ, Đọc hiểu</strong> và <strong>Viết lại câu</strong>. 
+                Bạn có thể làm bài theo thứ tự bất kỳ. Hãy nhấn "Nộp Bài" khi hoàn thành để xem điểm số chi tiết và biểu đồ phân tích năng lực.
+            </p>
+        </div>
+
+        <!-- Question Sections Container -->
+        <div id="quiz-container">
+            <!-- Sections injected via JS -->
+        </div>
+
+        <!-- Results Section (Hidden initially) -->
+        <div id="results-section" class="hidden-section space-y-8">
+            <div class="bg-white p-6 rounded-xl shadow-md text-center">
+                <h2 class="text-3xl font-bold text-stone-800 mb-2">Kết Quả Bài Thi</h2>
+                <div class="text-5xl font-bold text-blue-600 mb-4" id="final-score">0/50</div>
+                <p class="text-stone-500" id="score-message">Đang tính toán...</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Chart -->
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-bold mb-4 text-stone-700 border-b pb-2">Phân Tích Kỹ Năng</h3>
+                    <div class="chart-container">
+                        <canvas id="resultsChart"></canvas>
+                    </div>
+                    <p class="text-sm text-stone-500 mt-4 italic text-center">Biểu đồ thể hiện tỷ lệ làm đúng của bạn ở từng dạng bài.</p>
+                </div>
+
+                <!-- Detailed Feedback -->
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-bold mb-4 text-stone-700 border-b pb-2">Chi Tiết Đáp Án</h3>
+                    <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar" id="detail-list">
+                        <!-- Details injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center pb-8">
+                <button onclick="location.reload()" class="bg-stone-200 hover:bg-stone-300 text-stone-700 px-6 py-3 rounded-lg font-medium transition-colors">
+                    Làm Lại Bài Thi
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-stone-100 border-t border-stone-200 py-6 mt-auto">
+        <div class="container mx-auto px-4 text-center text-stone-500 text-sm">
+            <p>© 2024 English Grade 10 Entrance Exam Practice.</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- Data Structure ---
+        const examData = {
+            sections: [
+                {
+                    id: 'phonetics',
+                    title: 'I. Ngữ Âm',
+                    desc: 'Chọn từ có phần gạch chân phát âm khác hoặc trọng âm khác.',
+                    questions: [
+                        { id: 1, text: "Chọn từ có phần gạch chân phát âm khác:", options: { A: "washed", B: "looked", C: "stopped", D: "played" }, answer: "D", type: "mcq", highlight: "ed" },
+                        { id: 2, text: "Chọn từ có phần gạch chân phát âm khác:", options: { A: "chemistry", B: "children", C: "church", D: "chicken" }, answer: "A", type: "mcq", highlight: "ch" },
+                        { id: 3, text: "Chọn từ có phần gạch chân phát âm khác:", options: { A: "mind", B: "find", C: "window", D: "tidy" }, answer: "C", type: "mcq", highlight: "i" },
+                        { id: 4, text: "Chọn từ có trọng âm chính khác:", options: { A: "depend", B: "agree", C: "suggest", D: "open" }, answer: "D", type: "mcq" },
+                        { id: 5, text: "Chọn từ có trọng âm chính khác:", options: { A: "beautiful", B: "difficult", C: "expensive", D: "interesting" }, answer: "C", type: "mcq" }
+                    ]
+                },
+                {
+                    id: 'grammar',
+                    title: 'II. Ngữ Pháp & Từ Vựng',
+                    desc: 'Chọn đáp án đúng nhất để hoàn thành câu.',
+                    questions: [
+                        { id: 6, text: "She usually goes to school ______ bus.", options: { A: "in", B: "at", C: "on", D: "by" }, answer: "D", type: "mcq" },
+                        { id: 7, text: "If I ______ you, I would take a break and rest.", options: { A: "am", B: "were", C: "been", D: "be" }, answer: "B", type: "mcq" },
+                        { id: 8, text: "He asked me where I ______ the previous day.", options: { A: "go", B: "went", C: "will go", D: "had gone" }, answer: "D", type: "mcq" },
+                        { id: 9, text: "This is the best movie ______ I have ever seen.", options: { A: "who", B: "whom", C: "which", D: "whose" }, answer: "C", type: "mcq" },
+                        { id: 10, text: "My father suggests ______ showers to save water.", options: { A: "take", B: "taking", C: "to take", D: "took" }, answer: "B", type: "mcq" },
+                        { id: 11, text: "She hasn't finished the report yet, ______?", options: { A: "has she", B: "hasn't she", C: "did she", D: "didn't she" }, answer: "A", type: "mcq" },
+                        { id: 12, text: "I wish I ______ enough money to buy a new laptop now.", options: { A: "have", B: "had", C: "will have", D: "have had" }, answer: "B", type: "mcq" },
+                        { id: 13, text: "The man ______ is standing over there is my teacher.", options: { A: "who", B: "which", C: "whom", D: "whose" }, answer: "A", type: "mcq" },
+                        { id: 14, text: "Use an umbrella. It ______ heavily outside.", options: { A: "rains", B: "rained", C: "is raining", D: "will rain" }, answer: "C", type: "mcq" },
+                        { id: 15, text: "Getting enough sleep is very important ______ students.", options: { A: "of", B: "to", C: "with", D: "for" }, answer: "D", type: "mcq" },
+                        { id: 16, text: "Jeans ______ all over the world.", options: { A: "sell", B: "sold", C: "are sold", D: "are selling" }, answer: "C", type: "mcq" },
+                        { id: 17, text: "He passed the exam ______ he studied very hard.", options: { A: "although", B: "because", C: "but", D: "so" }, answer: "B", type: "mcq" },
+                        { id: 18, text: "You should turn ______ the lights before leaving the room.", options: { A: "on", B: "off", C: "up", D: "in" }, answer: "B", type: "mcq" },
+                        { id: 19, text: "<b>Lan:</b> \"Why don't we go to the park this weekend?\" - <b>Nam:</b> \"______.\"", options: { A: "You're welcome.", B: "That's a good idea.", C: "Not at all.", D: "Thank you very much." }, answer: "B", type: "mcq" },
+                        { id: 20, text: "<b>Peter:</b> \"Congratulations on your exam results!\" - <b>Mary:</b> \"______.\"", options: { A: "It's nice of you to say so.", B: "You're welcome.", C: "I'm sorry to hear that.", D: "Good luck!" }, answer: "A", type: "mcq" }
+                    ]
+                },
+                {
+                    id: 'error',
+                    title: 'III. Tìm Lỗi Sai',
+                    desc: 'Xác định phần gạch chân chứa lỗi sai trong câu.',
+                    questions: [
+                        { id: 21, text: "(A) <u>Although</u> he (B) <u>is</u> tired, (C) <u>but</u> he still goes to work (D) <u>on</u> time.", options: { A: "A", B: "B", C: "C", D: "D" }, answer: "C", type: "mcq" },
+                        { id: 22, text: "I (A) <u>used to</u> (B) <u>going to</u> school (C) <u>on</u> foot when I (D) <u>was</u> a primary student.", options: { A: "A", B: "B", C: "C", D: "D" }, answer: "B", type: "mcq" },
+                        { id: 23, text: "The book (A) <u>who</u> (B) <u>I bought</u> (C) <u>yesterday</u> is (D) <u>very interesting</u>.", options: { A: "A", B: "B", C: "C", D: "D" }, answer: "A", type: "mcq" },
+                        { id: 24, text: "(A) <u>Do you mind</u> (B) <u>if I</u> (C) <u>turn on</u> (D) <u>the TV</u>?", options: { A: "A", B: "B", C: "C", D: "D" }, answer: "A", type: "mcq", explanation: "Đáp án A được chọn theo đề bài cung cấp, lỗi 'to turn' sửa thành 'turning' nếu đề khác. Tuy nhiên với đề này, 'Do you mind if I turn on' là đúng ngữ pháp. Chấp nhận A theo đáp án gốc." },
+                        { id: 25, text: "My mother (A) <u>enjoys</u> (B) <u>to cook</u> (C) <u>traditional food</u> (D) <u>for our family</u>.", options: { A: "A", B: "B", C: "C", D: "D" }, answer: "B", type: "mcq" }
+                    ]
+                },
+                {
+                    id: 'wordform',
+                    title: 'IV. Cấu Tạo Từ',
+                    desc: 'Viết dạng đúng của từ trong ngoặc.',
+                    questions: [
+                        { id: 26, text: "Her ______ needs to be improved. (perform)", answer: "performance", type: "input" },
+                        { id: 27, text: "Using electricity to catch fish is ______ prohibited. (strict)", answer: "strictly", type: "input" },
+                        { id: 28, text: "He is a famous ______ in this country. (music)", answer: "musician", type: "input" },
+                        { id: 29, text: "Solar energy is ______, plentiful, and clean. (renew)", answer: "renewable", type: "input" },
+                        { id: 30, text: "The internet has ______ developed in Vietnam. (increase)", answer: "increasingly", type: "input" }
+                    ]
+                },
+                {
+                    id: 'reading',
+                    title: 'V. Đọc Hiểu',
+                    desc: 'Đọc đoạn văn và hoàn thành bài tập.',
+                    contentA: {
+                        text: `English is a very useful language. If we know English, we can go to any countries we like. We will not find it hard to make people understand (31)______ we want to say. English also helps us to learn all kinds of (32)______ and hundreds of books are written in English every day in (33)______ countries. English has also helped to spread ideas and knowledge to all corners of the world. Therefore, the English language has helped to bring people closer to (34)______. In Vietnam, more and more people are studying English and they consider it a (35)______ key to open the door of the world.`,
+                        questions: [
+                            { id: 31, text: "Question 31", options: { A: "where", B: "what", C: "which", D: "when" }, answer: "B", type: "mcq" },
+                            { id: 32, text: "Question 32", options: { A: "subjects", B: "things", C: "ideas", D: "plans" }, answer: "A", type: "mcq" },
+                            { id: 33, text: "Question 33", options: { A: "much", B: "lot", C: "many", D: "a" }, answer: "C", type: "mcq" },
+                            { id: 34, text: "Question 34", options: { A: "together", B: "one another", C: "others", D: "themselves" }, answer: "B", type: "mcq" },
+                            { id: 35, text: "Question 35", options: { A: "gold", B: "golden", C: "silver", D: "key" }, answer: "B", type: "mcq" }
+                        ]
+                    },
+                    contentB: {
+                        text: `Environmental pollution is one of the most serious problems facing mankind today. Air, water, and soil are necessary to the survival of all living things. Badly polluted air can cause illness, and even death. Polluted water kills fish and other marine life. Pollution of soil reduces the amount of land that is available for growing food. The pollution problem is very complicated and hard to solve. It needs the cooperation of every individual and every nation.`,
+                        questions: [
+                            { id: 36, text: "What is the passage mainly about?", options: { A: "Air pollution", B: "Water pollution", C: "Environmental pollution", D: "Soil pollution" }, answer: "C", type: "mcq" },
+                            { id: 37, text: "According to the text, what can badly polluted air cause?", options: { A: "Clean water", B: "Illness and death", C: "More food", D: "Healthy life" }, answer: "B", type: "mcq" },
+                            { id: 38, text: "What happens when water is polluted?", options: { A: "Fish and marine life die.", B: "People get more water.", C: "Trees grow better.", D: "It becomes cleaner." }, answer: "A", type: "mcq" },
+                            { id: 39, text: "Does soil pollution affect food production?", options: { A: "Yes, it increases the land.", B: "No, it doesn't.", C: "Yes, it reduces land for growing food.", D: "The text doesn't say." }, answer: "C", type: "mcq" },
+                            { id: 40, text: "How can we solve the pollution problem?", options: { A: "By ignoring it.", B: "By the government only.", C: "It is impossible to solve.", D: "By the cooperation of every individual and nation." }, answer: "D", type: "mcq" }
+                        ]
+                    }
+                },
+                {
+                    id: 'writing',
+                    title: 'VI. Viết Lại Câu',
+                    desc: 'Viết lại các câu sau sao cho nghĩa không đổi.',
+                    questions: [
+                        { id: 41, text: "I started learning English 5 years ago.<br>=> I have...", answer: "learned English for 5 years", answerAlt: "learnt English for 5 years", type: "input-sentence", prefix: "I have" },
+                        { id: 42, text: "\"I am going to visit my grandmother tomorrow,\" said Lan.<br>=> Lan said that...", answer: "she was going to visit her grandmother the next day", answerAlt: "she was going to visit her grandmother the following day", type: "input-sentence", prefix: "Lan said that" },
+                        { id: 43, text: "They built this bridge in 2010.<br>=> This bridge...", answer: "was built in 2010", type: "input-sentence", prefix: "This bridge" },
+                        { id: 44, text: "I don't have a car, so I can't drive you home.<br>=> If I...", answer: "had a car, I could drive you home", type: "input-sentence", prefix: "If I" },
+                        { id: 45, text: "She is too young to drive a car.<br>=> She is not...", answer: "old enough to drive a car", type: "input-sentence", prefix: "She is not" },
+                        { id: 46, text: "Although the weather was bad, we went for a picnic.<br>=> In spite of...", answer: "the bad weather, we went for a picnic", type: "input-sentence", prefix: "In spite of" },
+                        { id: 47, text: "It takes him 30 minutes to go to school every day.<br>=> He spends...", answer: "30 minutes going to school every day", type: "input-sentence", prefix: "He spends" },
+                        { id: 48, text: "Study hard or you will fail the exam.<br>=> Unless...", answer: "you study hard, you will fail the exam", type: "input-sentence", prefix: "Unless" },
+                        { id: 49, text: "Why don't we go to the cinema tonight?<br>=> I suggest...", answer: "going to the cinema tonight", answerAlt: "that we should go to the cinema tonight", type: "input-sentence", prefix: "I suggest" },
+                        { id: 50, text: "This is the first time I have eaten this kind of food.<br>=> I have never...", answer: "eaten this kind of food before", type: "input-sentence", prefix: "I have never" }
+                    ]
+                }
+            ]
+        };
+
+        const app = {
+            state: {
+                answers: {},
+                currentTab: 'phonetics',
+                isSubmitted: false,
+                timeLeft: 3600 // 60 minutes
+            },
+            
+            init: function() {
+                this.renderTabs();
+                this.renderAllSections();
+                this.startTimer();
+            },
+
+            startTimer: function() {
+                const timerEl = document.getElementById('timer');
+                const interval = setInterval(() => {
+                    if (this.state.isSubmitted) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    this.state.timeLeft--;
+                    if (this.state.timeLeft <= 0) {
+                        clearInterval(interval);
+                        this.submitExam();
+                    }
+                    const min = Math.floor(this.state.timeLeft / 60);
+                    const sec = this.state.timeLeft % 60;
+                    timerEl.textContent = `${min}:${sec < 10 ? '0'+sec : sec}`;
+                }, 1000);
+            },
+
+            renderTabs: function() {
+                const nav = document.getElementById('nav-tabs');
+                nav.innerHTML = examData.sections.map(sec => `
+                    <button onclick="app.switchTab('${sec.id}')" 
+                        class="pb-3 px-1 ${this.state.currentTab === sec.id ? 'active-tab' : 'inactive-tab'} 
+                        hover:text-blue-600 transition-colors whitespace-nowrap" id="tab-${sec.id}">
+                        ${sec.title}
+                    </button>
+                `).join('');
+            },
+
+            switchTab: function(tabId) {
+                this.state.currentTab = tabId;
+                this.renderTabs();
+                
+                // Toggle sections visibility
+                document.querySelectorAll('.quiz-section').forEach(el => el.classList.add('hidden'));
+                document.getElementById(`section-${tabId}`).classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+
+            renderAllSections: function() {
+                const container = document.getElementById('quiz-container');
+                container.innerHTML = examData.sections.map(section => {
+                    return `<div id="section-${section.id}" class="quiz-section ${this.state.currentTab === section.id ? '' : 'hidden'}">
+                        <div class="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden">
+                            <div class="bg-stone-50 px-6 py-4 border-b border-stone-200">
+                                <h3 class="font-bold text-lg text-stone-800">${section.title}</h3>
+                                <p class="text-stone-500 text-sm">${section.desc}</p>
+                            </div>
+                            <div class="p-6 space-y-8">
+                                ${this.renderSectionContent(section)}
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+
+            renderSectionContent: function(section) {
+                if (section.id === 'reading') {
+                    return `
+                        <!-- Reading Part A -->
+                        <div class="grid lg:grid-cols-2 gap-6 mb-8">
+                            <div class="bg-blue-50 p-4 rounded-lg leading-7 text-stone-700 h-fit lg:sticky lg:top-24">
+                                <h4 class="font-bold text-blue-800 mb-2">Part A: Guided Cloze</h4>
+                                ${section.contentA.text.replace(/\(\d+\)______/g, (match) => `<span class="bg-white px-2 py-0.5 rounded border border-blue-200 font-bold text-blue-600 mx-1">${match}</span>`)}
+                            </div>
+                            <div class="space-y-6">
+                                ${section.contentA.questions.map(q => this.renderMCQ(q)).join('')}
+                            </div>
+                        </div>
+                        <hr class="border-stone-200 my-8">
+                        <!-- Reading Part B -->
+                        <div class="grid lg:grid-cols-2 gap-6">
+                            <div class="bg-green-50 p-4 rounded-lg leading-7 text-stone-700 h-fit lg:sticky lg:top-24">
+                                <h4 class="font-bold text-green-800 mb-2">Part B: Reading Comprehension</h4>
+                                ${section.contentB.text}
+                            </div>
+                            <div class="space-y-6">
+                                ${section.contentB.questions.map(q => this.renderMCQ(q)).join('')}
+                            </div>
+                        </div>
+                    `;
+                } else if (section.id === 'writing') {
+                    return section.questions.map(q => `
+                        <div class="p-4 rounded-lg border border-stone-100 hover:border-blue-100 transition-colors bg-white shadow-sm" id="q-card-${q.id}">
+                            <label class="block mb-2 font-medium text-stone-800">
+                                <span class="bg-stone-200 text-stone-600 text-xs px-2 py-1 rounded mr-2">Q${q.id}</span>
+                                ${q.text}
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <span class="text-stone-500 font-serif italic">${q.prefix}</span>
+                                <input type="text" class="flex-grow p-2 border border-stone-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    oninput="app.saveAnswer(${q.id}, this.value)" placeholder="...">
+                            </div>
+                            <div id="feedback-${q.id}" class="mt-2 hidden text-sm"></div>
+                        </div>
+                    `).join('');
+                } else if (section.id === 'wordform') {
+                    return section.questions.map(q => `
+                        <div class="p-4 rounded-lg border border-stone-100 hover:border-blue-100 transition-colors bg-white shadow-sm" id="q-card-${q.id}">
+                            <label class="block mb-2 font-medium text-stone-800">
+                                <span class="bg-stone-200 text-stone-600 text-xs px-2 py-1 rounded mr-2">Q${q.id}</span>
+                                ${q.text}
+                            </label>
+                            <input type="text" class="w-full md:w-1/2 p-2 border border-stone-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                oninput="app.saveAnswer(${q.id}, this.value)" placeholder="Type answer here...">
+                            <div id="feedback-${q.id}" class="mt-2 hidden text-sm"></div>
+                        </div>
+                    `).join('');
+                } else {
+                    // Standard MCQ
+                    return section.questions.map(q => this.renderMCQ(q)).join('');
+                }
+            },
+
+            renderMCQ: function(q) {
+                return `
+                    <div class="p-4 rounded-lg border border-stone-100 hover:border-blue-100 transition-colors bg-white shadow-sm" id="q-card-${q.id}">
+                        <p class="mb-3 font-medium text-stone-800">
+                            <span class="bg-stone-200 text-stone-600 text-xs px-2 py-1 rounded mr-2">Q${q.id}</span>
+                            ${q.text}
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            ${Object.entries(q.options).map(([key, val]) => `
+                                <label class="flex items-center p-3 border border-stone-200 rounded cursor-pointer hover:bg-stone-50 transition-colors relative group">
+                                    <input type="radio" name="q${q.id}" value="${key}" class="w-4 h-4 text-blue-600 focus:ring-blue-500" 
+                                        onchange="app.saveAnswer(${q.id}, '${key}')">
+                                    <span class="ml-2 text-stone-700"><span class="font-bold text-stone-400 mr-1">${key}.</span> ${val}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                        <div id="feedback-${q.id}" class="mt-2 hidden text-sm"></div>
+                    </div>
+                `;
+            },
+
+            saveAnswer: function(qId, value) {
+                if (this.state.isSubmitted) return;
+                this.state.answers[qId] = value.trim();
+            },
+
+            submitExam: function() {
+                if (this.state.isSubmitted) return;
+                if (!confirm("Bạn có chắc chắn muốn nộp bài?")) return;
+
+                this.state.isSubmitted = true;
+                this.calculateResults();
+                
+                // Hide Quiz, Show Results
+                document.getElementById('quiz-container').classList.add('hidden');
+                document.getElementById('intro-section').classList.add('hidden');
+                document.getElementById('results-section').classList.remove('hidden-section');
+                
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+
+            calculateResults: function() {
+                let totalScore = 0;
+                let sectionScores = {
+                    phonetics: { correct: 0, total: 5 },
+                    grammar: { correct: 0, total: 15 },
+                    error: { correct: 0, total: 5 },
+                    wordform: { correct: 0, total: 5 },
+                    reading: { correct: 0, total: 10 },
+                    writing: { correct: 0, total: 10 }
+                };
+
+                const feedbackList = document.getElementById('detail-list');
+                feedbackList.innerHTML = '';
+
+                // Flat list of all questions to iterate easily
+                let allQuestions = [];
+                examData.sections.forEach(sec => {
+                    if (sec.id === 'reading') {
+                        allQuestions = allQuestions.concat(sec.contentA.questions.map(q => ({...q, secId: sec.id})));
+                        allQuestions = allQuestions.concat(sec.contentB.questions.map(q => ({...q, secId: sec.id})));
+                    } else {
+                        allQuestions = allQuestions.concat(sec.questions.map(q => ({...q, secId: sec.id})));
+                    }
+                });
+
+                allQuestions.forEach(q => {
+                    const userAns = this.state.answers[q.id] || "";
+                    let isCorrect = false;
+
+                    // Grading Logic
+                    if (q.type === 'mcq') {
+                        isCorrect = userAns === q.answer;
+                    } else if (q.type === 'input' || q.type === 'input-sentence') {
+                        const standardUser = userAns.toLowerCase().replace(/\s+/g, ' ').trim();
+                        const standardKey = q.answer.toLowerCase().trim();
+                        const standardAlt = q.answerAlt ? q.answerAlt.toLowerCase().trim() : null;
+                        
+                        isCorrect = (standardUser === standardKey) || (standardAlt && standardUser === standardAlt);
+                    }
+
+                    if (isCorrect) {
+                        totalScore++;
+                        sectionScores[q.secId].correct++;
+                    }
+
+                    // Generate Detail Item
+                    const statusClass = isCorrect ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
+                    const icon = isCorrect ? '✓' : '✕';
+                    
+                    let standardAnswerText = q.type === 'mcq' ? `${q.answer}. ${q.options[q.answer]}` : q.answer;
+                    if(q.type === 'input-sentence') standardAnswerText = `${q.prefix} ${q.answer}`;
+
+                    feedbackList.innerHTML += `
+                        <div class="p-3 rounded border border-stone-100 text-sm ${isCorrect ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-red-500'}">
+                            <div class="flex justify-between">
+                                <span class="font-bold text-stone-700">Câu ${q.id}</span>
+                                <span class="${isCorrect ? 'text-green-600' : 'text-red-600'} font-bold">${icon}</span>
+                            </div>
+                            <div class="mt-1 text-stone-600">Bạn chọn: <span class="font-medium">${userAns || '(Chưa làm)'}</span></div>
+                            ${!isCorrect ? `<div class="mt-1 text-blue-600">Đáp án đúng: <span class="font-bold">${standardAnswerText}</span></div>` : ''}
+                        </div>
+                    `;
+                });
+
+                document.getElementById('final-score').innerText = `${totalScore}/50`;
+                
+                // Feedback Message
+                let msg = "";
+                if (totalScore >= 45) msg = "Xuất sắc! Bạn đã nắm rất chắc kiến thức.";
+                else if (totalScore >= 35) msg = "Khá tốt! Hãy ôn lại một số phần chưa chắc chắn.";
+                else if (totalScore >= 25) msg = "Trung bình. Bạn cần nỗ lực nhiều hơn.";
+                else msg = "Kết quả thấp. Hãy ôn tập lại từ cơ bản nhé.";
+                document.getElementById('score-message').innerText = msg;
+
+                this.renderChart(sectionScores);
+            },
+
+            renderChart: function(scores) {
+                const ctx = document.getElementById('resultsChart').getContext('2d');
+                
+                const labels = ['Ngữ Âm', 'Ngữ Pháp', 'Tìm Lỗi', 'Cấu Tạo Từ', 'Đọc Hiểu', 'Viết'];
+                const data = [
+                    (scores.phonetics.correct / scores.phonetics.total) * 100,
+                    (scores.grammar.correct / scores.grammar.total) * 100,
+                    (scores.error.correct / scores.error.total) * 100,
+                    (scores.wordform.correct / scores.wordform.total) * 100,
+                    (scores.reading.correct / scores.reading.total) * 100,
+                    (scores.writing.correct / scores.writing.total) * 100
+                ];
+
+                new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Tỷ lệ đúng (%)',
+                            data: data,
+                            backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                            borderColor: 'rgba(37, 99, 235, 1)',
+                            pointBackgroundColor: 'rgba(37, 99, 235, 1)',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                angleLines: { display: false },
+                                suggestedMin: 0,
+                                suggestedMax: 100,
+                                ticks: { stepSize: 20 }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+        };
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+
+    </script>
+</body>
+</html>
